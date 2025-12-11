@@ -1,4 +1,68 @@
-<!DOCTYPE html>
+#!/usr/bin/env python3
+"""
+Upload the custom homepage to the correct location in SharePoint
+"""
+
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Configuration
+TENANT_ID = os.getenv('SHP_TENANT_ID')
+CLIENT_ID = os.getenv('SHP_ID_APP')
+CLIENT_SECRET = os.getenv('SHP_ID_APP_SECRET')
+SITE_URL = os.getenv('SHP_SITE_URL')
+
+def upload_homepage():
+    """Upload homepage to the Quick Reference folder where we have access"""
+
+    print("🔐 Authenticating...")
+
+    # Authenticate
+    url = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
+    data = {
+        'client_id': CLIENT_ID,
+        'client_secret': CLIENT_SECRET,
+        'scope': 'https://graph.microsoft.com/.default',
+        'grant_type': 'client_credentials'
+    }
+    response = requests.post(url, data=data)
+    response.raise_for_status()
+    access_token = response.json().get('access_token')
+    headers = {'Authorization': f'Bearer {access_token}'}
+
+    # Get site and drive IDs (we know these work)
+    from urllib.parse import urlparse
+    parsed = urlparse(SITE_URL)
+    hostname = parsed.netloc
+    site_path = parsed.path.lstrip('/')
+
+    site_url = f"https://graph.microsoft.com/v1.0/sites/{hostname}:/{site_path}"
+    response = requests.get(site_url, headers=headers)
+    response.raise_for_status()
+    site_id = response.json().get('id')
+
+    drives_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drives"
+    response = requests.get(drives_url, headers=headers)
+    response.raise_for_status()
+
+    drives = response.json().get('value', [])
+    drive_id = None
+    for drive in drives:
+        if 'Document' in drive.get('name', ''):
+            drive_id = drive.get('id')
+            break
+
+    if not drive_id and drives:
+        drive_id = drives[0].get('id')
+
+    print(f"✅ Connected to SharePoint")
+    print(f"📁 Using drive: {drive_id}")
+
+    # Create a simple but beautiful homepage HTML
+    html_content = """<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
@@ -185,7 +249,7 @@
         <!-- Quick Actions -->
         <h2 class="section-title">Quick Actions</h2>
         <div class="cards">
-            <a href="mailto:richard.wild@ethos.co.im?subject=Security%20Incident%20Report" class="card">
+            <a href="mailto:security@ethos.co.im?subject=Security%20Incident%20Report" class="card">
                 <div class="card-icon">🚨</div>
                 <h3>Report Incident</h3>
                 <p>Quickly report security incidents</p>
@@ -195,12 +259,12 @@
                 <h3>Request Access</h3>
                 <p>Submit system access requests</p>
             </a>
-            <a href="https://ethosltduk.sharepoint.com/sites/InformationSecurityManagement/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FInformationSecurityManagement%2FShared%20Documents%2F03%5FTraining&viewid=2e6e75fe%2D0fcf%2D4a2c%2D8c57%2D49ed0f5d6595" class="card" target="_blank">
+            <a href="03_Training/Staff_Training/ISMS_TRN_001_Security_Awareness_Training_Framework.html" class="card">
                 <div class="card-icon">📚</div>
                 <h3>Training Materials</h3>
                 <p>Access security training resources</p>
             </a>
-            <a href="https://ethosltduk.sharepoint.com/sites/InformationSecurityManagement/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FInformationSecurityManagement%2FShared%20Documents%2F05%5FQuick%5FReference&viewid=2e6e75fe%2D0fcf%2D4a2c%2D8c57%2D49ed0f5d6595" class="card" target="_blank">
+            <a href="05_Quick_Reference/Welcome_Guide.html" class="card">
                 <div class="card-icon">❓</div>
                 <h3>Help & Support</h3>
                 <p>Get help and find answers</p>
@@ -213,34 +277,34 @@
             <div class="notice">
                 <h4>🎓 Annual Security Training Due Q1 2025</h4>
                 <p>All staff must complete the Security Awareness Training by end of Q1.</p>
-                <a href="https://ethosltduk.sharepoint.com/sites/InformationSecurityManagement/Shared%20Documents" target="_blank">Check training materials →</a>
+                <a href="../Lists/Training%20Records">Check your training status →</a>
             </div>
             <div class="notice">
                 <h4>🔄 Remote Working Policy Updated</h4>
                 <p>New security requirements have been added to the Remote Working Policy.</p>
-                <a href="https://ethosltduk.sharepoint.com/sites/InformationSecurityManagement/Shared%20Documents" target="_blank">Review the policy →</a>
+                <a href="01_Policies/Core_Policies/ISMS_POL_009_Remote_Working_Policy.html">Review the policy →</a>
             </div>
         </div>
 
         <!-- Document Library -->
         <h2 class="section-title">Document Library</h2>
         <div class="doc-grid">
-            <a href="https://ethosltduk.sharepoint.com/sites/InformationSecurityManagement/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FInformationSecurityManagement%2FShared%20Documents%2F01%5FPolicies&viewid=2e6e75fe%2D0fcf%2D4a2c%2D8c57%2D49ed0f5d6595" class="doc-tile" target="_blank">
+            <a href="01_Policies" class="doc-tile">
                 <div class="doc-icon">📄</div>
                 <h4>Policies</h4>
                 <p>12 documents</p>
             </a>
-            <a href="https://ethosltduk.sharepoint.com/sites/InformationSecurityManagement/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FInformationSecurityManagement%2FShared%20Documents%2F02%5FProcedures&viewid=2e6e75fe%2D0fcf%2D4a2c%2D8c57%2D49ed0f5d6595" class="doc-tile procedures" target="_blank">
+            <a href="02_Procedures" class="doc-tile procedures">
                 <div class="doc-icon">📝</div>
                 <h4>Procedures</h4>
                 <p>8 documents</p>
             </a>
-            <a href="https://ethosltduk.sharepoint.com/sites/InformationSecurityManagement/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FInformationSecurityManagement%2FShared%20Documents%2F03%5FTraining&viewid=2e6e75fe%2D0fcf%2D4a2c%2D8c57%2D49ed0f5d6595" class="doc-tile training" target="_blank">
+            <a href="03_Training" class="doc-tile training">
                 <div class="doc-icon">🎓</div>
                 <h4>Training</h4>
                 <p>Materials & Guides</p>
             </a>
-            <a href="https://ethosltduk.sharepoint.com/sites/InformationSecurityManagement/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FInformationSecurityManagement%2FShared%20Documents%2F04%5FForms%5FTemplates&viewid=2e6e75fe%2D0fcf%2D4a2c%2D8c57%2D49ed0f5d6595" class="doc-tile forms" target="_blank">
+            <a href="04_Forms_Templates" class="doc-tile forms">
                 <div class="doc-icon">📋</div>
                 <h4>Forms</h4>
                 <p>Templates</p>
@@ -250,20 +314,20 @@
         <!-- Key Documents -->
         <h2 class="section-title">Essential Reading</h2>
         <div class="cards">
-            <a href="https://ethosltduk.sharepoint.com/sites/InformationSecurityManagement/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FInformationSecurityManagement%2FShared%20Documents%2F01%5FPolicies%2FCore%5FPolicies&viewid=2e6e75fe%2D0fcf%2D4a2c%2D8c57%2D49ed0f5d6595" class="card" target="_blank">
+            <a href="01_Policies/Core_Policies/ISMS_POL_001_Information_Security_Policy.html" class="card">
                 <div class="card-icon">📖</div>
-                <h3>Core Security Policies</h3>
-                <p>Information Security, Access Control, and more</p>
+                <h3>Information Security Policy</h3>
+                <p>Core security principles for all staff</p>
             </a>
-            <a href="https://ethosltduk.sharepoint.com/sites/InformationSecurityManagement/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FInformationSecurityManagement%2FShared%20Documents%2F01%5FPolicies%2FCore%5FPolicies&viewid=2e6e75fe%2D0fcf%2D4a2c%2D8c57%2D49ed0f5d6595" class="card" target="_blank">
+            <a href="01_Policies/Core_Policies/ISMS_POL_008_Acceptable_Use_Policy.html" class="card">
                 <div class="card-icon">💻</div>
                 <h3>Acceptable Use Policy</h3>
                 <p>Guidelines for IT resource usage</p>
             </a>
-            <a href="https://ethosltduk.sharepoint.com/sites/InformationSecurityManagement/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FInformationSecurityManagement%2FShared%20Documents%2F02%5FProcedures%2FEmergency&viewid=2e6e75fe%2D0fcf%2D4a2c%2D8c57%2D49ed0f5d6595" class="card" target="_blank">
+            <a href="02_Procedures/Emergency/ISMS_PRO_002_Incident_Response_Procedure.html" class="card">
                 <div class="card-icon">🆘</div>
-                <h3>Emergency Procedures</h3>
-                <p>Incident response and business continuity</p>
+                <h3>Incident Response</h3>
+                <p>What to do when incidents occur</p>
             </a>
         </div>
 
@@ -271,14 +335,43 @@
         <div class="footer">
             <h3>Need Help?</h3>
             <p style="margin: 20px 0;">
-                📧 Email: <a href="mailto:richard.wild@ethos.co.im">richard.wild@ethos.co.im</a> |
+                📧 Email: <a href="mailto:security@ethos.co.im">security@ethos.co.im</a> |
                 💬 Teams: #security-help |
-                📞 IT Support: <a href="mailto:support@mtg.im">support@mtg.im</a>
+                📞 Emergency: Contact IT Support
             </p>
             <p style="opacity: 0.8; font-size: 0.9em;">
-                © 2025 ETHOS Digital Health Limited. Information Security Management System
+                © 2025 ETHOS Ltd. Information Security Management System
             </p>
         </div>
     </div>
 </body>
-</html>
+</html>"""
+
+    # Upload to the Shared Documents root (where we have permission)
+    upload_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/ISMS_Portal_Home.html:/content"
+
+    upload_headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'text/html'
+    }
+
+    print("\n📤 Uploading custom homepage...")
+    response = requests.put(upload_url, headers=upload_headers, data=html_content.encode('utf-8'))
+
+    if response.status_code in [200, 201]:
+        print("✅ Custom homepage uploaded successfully!")
+        print(f"\n🌐 Access your beautiful portal at:")
+        print(f"{SITE_URL}/Shared Documents/ISMS_Portal_Home.html")
+        print(f"\n📝 To use this as your homepage:")
+        print("1. Navigate to the file in SharePoint")
+        print("2. Open it in the browser")
+        print("3. Bookmark it for quick access")
+        print("4. Share this link with staff")
+        return True
+    else:
+        print(f"❌ Upload failed: {response.status_code}")
+        print(response.text)
+        return False
+
+if __name__ == '__main__':
+    upload_homepage()
